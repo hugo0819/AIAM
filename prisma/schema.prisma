@@ -1,0 +1,167 @@
+// AI Agent Passport · Prisma Schema
+// 对应 构建方案.md §1.3 核心实体定义
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ---------------------------------------------------------------------------
+// Users & Agents
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String
+  role        String   @default("OWNER") // ADMIN | OWNER | AUDITOR
+  agents      Agent[]
+  approvals   ApprovalRequest[] @relation("ApproverUser")
+  createdAt   DateTime @default(now())
+}
+
+model Agent {
+  id          String   @id
+  name        String
+  description String?
+  avatarUrl   String?
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  riskTier    String   @default("L2") // L1 | L2 | L3
+  status      String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  passports   Passport[]
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Passport
+// ---------------------------------------------------------------------------
+
+model Passport {
+  id              String   @id @default(uuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id])
+
+  parentId        String?
+  parent          Passport?  @relation("Derive", fields: [parentId], references: [id])
+  children        Passport[] @relation("Derive")
+
+  jwt             String
+  capabilities    String   // JSON string of Capability[]
+  constraints     String   // JSON string of PassportConstraints
+  dataClearance   String   // JSON string of DataClearance[]
+  riskTier        String   @default("L2")
+
+  delegationDepth Int      @default(0)
+  delegationMax   Int      @default(2)
+
+  status          String   @default("ACTIVE")
+
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime
+
+  revocation      RevocationRecord?
+  events          AuditEvent[]
+  approvals       ApprovalRequest[]
+  derivedFrom     DelegationLink[]  @relation("ChildLinks")
+  derivedTo       DelegationLink[]  @relation("ParentLinks")
+  alerts          RiskAlert[]
+}
+
+// ---------------------------------------------------------------------------
+// Tools & Policies
+// ---------------------------------------------------------------------------
+
+model Tool {
+  id              String   @id
+  category        String
+  displayName     String
+  description     String?
+  riskTier        String   @default("L1")
+  schemaJson      String   // JSON Schema
+  sensitiveFields String   @default("[]") // JSON array of field paths
+  events          AuditEvent[]
+}
+
+model Policy {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  enabled     Boolean  @default(true)
+  priority    Int      @default(100)
+  rule        String   // JSON of PolicyRule
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Runtime: Audit, Approvals, Revocation, Delegation, Alerts
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id             String   @id @default(cuid())
+  passportId     String
+  passport       Passport @relation(fields: [passportId], references: [id])
+  toolId         String?
+  tool           Tool?    @relation(fields: [toolId], references: [id])
+  phase          String   // RECEIVED | VERIFIED | POLICY_CHECKED | MASKED | EXECUTED | LOGGED
+  decision       String   // ALLOW | DENY | STEP_UP | EXECUTED | ERROR
+  policyHits     String   @default("[]")
+  argsRaw        String?
+  argsMasked     String?
+  responseRaw    String?
+  responseMasked String?
+  latencyMs      Int?
+  riskScore      Float?
+  parentEventId  String?
+  note           String?
+  createdAt      DateTime @default(now())
+}
+
+model ApprovalRequest {
+  id             String   @id @default(cuid())
+  passportId     String
+  passport       Passport @relation(fields: [passportId], references: [id])
+  triggerEventId String
+  approverId     String
+  approver       User     @relation("ApproverUser", fields: [approverId], references: [id])
+  reason         String
+  payloadDigest  String
+  argsSnapshot   String   // JSON
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED | TIMEOUT
+  expiresAt      DateTime
+  decidedAt      DateTime?
+  createdAt      DateTime @default(now())
+}
+
+model DelegationLink {
+  id               String   @id @default(cuid())
+  parentPassportId String
+  parent           Passport @relation("ParentLinks", fields: [parentPassportId], references: [id])
+  childPassportId  String
+  child            Passport @relation("ChildLinks", fields: [childPassportId], references: [id])
+  derivedScope     String   // JSON of Capability[]
+  createdAt        DateTime @default(now())
+}
+
+model RevocationRecord {
+  passportId String   @id
+  passport   Passport @relation(fields: [passportId], references: [id])
+  reason     String
+  operatorId String
+  revokedAt  DateTime @default(now())
+}
+
+model RiskAlert {
+  id           String   @id @default(cuid())
+  passportId   String
+  passport     Passport @relation(fields: [passportId], references: [id])
+  rule         String
+  severity     String   @default("WARN") // INFO | WARN | CRITICAL
+  evidence     String   // JSON
+  acknowledged Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
