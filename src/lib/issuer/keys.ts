@@ -10,7 +10,17 @@ import {
 
 type KeyLike = CryptoKey;
 
-const KEY_DIR = path.join(process.cwd(), "keys");
+/**
+ * 默认密钥目录：开发环境写到项目内，Vercel/无服务器环境（只读 fs）走 /tmp/keys。
+ * 可通过 KEYS_DIR 环境变量覆盖。
+ */
+function resolveKeyDir() {
+  if (process.env.KEYS_DIR) return process.env.KEYS_DIR;
+  if (process.env.VERCEL) return "/tmp/keys";
+  return path.join(process.cwd(), "keys");
+}
+
+const KEY_DIR = resolveKeyDir();
 const PRIVATE_KEY_PATH = path.join(KEY_DIR, "issuer-ec-private.pem");
 const PUBLIC_KEY_PATH = path.join(KEY_DIR, "issuer-ec-public.pem");
 

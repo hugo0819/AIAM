@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ResetEnvButton } from "@/components/common/ResetEnvButton";
 import { SCENARIOS } from "@/mock/scenarios";
 
 const INNOVATIONS = [
@@ -42,9 +43,12 @@ export default function Home() {
       />
 
       <section className="container relative z-10 pt-20 pb-12">
-        <div className="flex items-center gap-2">
-          <Badge variant="info">参赛作品 · 字节跳动创新项目挑战赛</Badge>
-          <Badge variant="outline">Demo 原型 · 7 Days Build</Badge>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="info">参赛作品 · 字节跳动创新项目挑战赛</Badge>
+            <Badge variant="outline">Demo 原型 · 7 Days Build</Badge>
+          </div>
+          <ResetEnvButton />
         </div>
 
         <h1 className="mt-8 text-5xl font-semibold leading-tight tracking-tight md:text-6xl">

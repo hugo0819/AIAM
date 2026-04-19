@@ -31,6 +31,11 @@ class RevocationCache {
   size() {
     return this.set.size;
   }
+
+  clear() {
+    this.set.clear();
+    this.hydrated = false;
+  }
 }
 
 const globalForCache = globalThis as unknown as {
