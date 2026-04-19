@@ -46,7 +46,6 @@ export default function Home() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Badge variant="info">参赛作品 · 字节跳动创新项目挑战赛</Badge>
-            <Badge variant="outline">Demo 原型 · 7 Days Build</Badge>
           </div>
           <ResetEnvButton />
         </div>

@@ -64,14 +64,54 @@ export function ScenarioRunner({ scenario }: ScenarioRunnerProps) {
 
     if (step.kind === "issue") {
       if (step.payload && "parentPassport" in step.payload) {
-        // 派生通行证（S6）——Day 5 接入
+        // 派生通行证（S6）
         if (!currentPassportId) {
           updateState(idx, {
             status: "fail",
-            detail: "请先运行 S1 签发 Aria 的通行证",
+            detail: "❌ 还没有父通行证。请先回到 /stage/s1 完整播放 S1。",
           });
           return false;
         }
+
+        // ★ 防呆 ★ 派生前先校验父通行证是否有所需的子能力
+        try {
+          const parentRes = await fetch(`/api/passports/${currentPassportId}`);
+          if (!parentRes.ok) {
+            updateState(idx, {
+              status: "fail",
+              detail: `❌ 父通行证 ${currentPassportId.slice(0, 10)}… 不存在（可能已被重置或过期）。请先重置环境并重新播放 S1。`,
+            });
+            return false;
+          }
+          const parent = await parentRes.json();
+          const parentTools = (parent.capabilities ?? []) as Array<{ tool: string }>;
+          const wantedTools = (step.payload.capabilities as Array<{ tool: string }>).map((c) => c.tool);
+          const missing = wantedTools.filter(
+            (t) =>
+              !parentTools.some(
+                (p) =>
+                  p.tool === t ||
+                  (p.tool.endsWith(".*") && t.startsWith(p.tool.slice(0, -2) + ".")),
+              ),
+          );
+          if (missing.length > 0) {
+            const have = parentTools.map((c) => c.tool).join(", ");
+            updateState(idx, {
+              status: "fail",
+              detail: `❌ 父通行证缺少子能力 [${missing.join(", ")}]。父当前能力：[${have}]。请先回到 /stage/s1 重新播放（重置环境后重播）。`,
+            });
+            return false;
+          }
+        } catch (err) {
+          updateState(idx, {
+            status: "fail",
+            detail:
+              "⚠ 派生预检失败：" +
+              (err instanceof Error ? err.message : "无法读取父通行证"),
+          });
+          return false;
+        }
+
         try {
           const res = await fetch(
             `/api/passports/${currentPassportId}/derive`,
@@ -126,6 +166,8 @@ export function ScenarioRunner({ scenario }: ScenarioRunnerProps) {
           return false;
         }
         setCurrentPassportId(json.id);
+        // 重新签发父通行证后，清空旧的派生子通行证引用
+        setDerivedPassportId(null);
         updateState(idx, {
           status: "ok",
           detail: `签发成功 · ${json.id.slice(0, 10)}…`,

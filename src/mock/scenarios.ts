@@ -65,7 +65,7 @@ export const SCENARIOS: Scenario[] = [
         kind: "issue",
         title: "签发 Passport",
         detail:
-          "为 Aria 签发能力：日历读写 / 邮件起草 / 报销提交（≤500 元）。时间窗 09:00-19:00，地域限 CN。",
+          "为 Aria 签发能力：日历读写 / 邮件起草 / 客户名单只读 / 报销提交（≤500 元软限） / 机票预订（≤5000 元，可派生）。时间窗 09:00-19:00，地域限 CN。",
         highlight: "C1",
         payload: {
           agentId: "agent:aria-7f3a",
@@ -78,6 +78,11 @@ export const SCENARIOS: Scenario[] = [
               constraint: { amountMax: 5000, currency: "CNY" },
             },
             { tool: "crm.list_customers", scope: ["read"] },
+            {
+              tool: "flight.book",
+              scope: ["write"],
+              constraint: { amountMax: 5000, currency: "CNY" },
+            },
           ],
           constraints: {
             timeWindow: "Mon-Fri 09:00-19:00 Asia/Shanghai",
